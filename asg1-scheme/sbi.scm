@@ -62,13 +62,22 @@
 )
 
 (define (print-exist line)
-	; tailrecursion
-	; if caddr of line is print
-	; use recursion to print out next element if it is a string or number
-	(if (null? (cdr line))
-		(void)
-		(printf "~s~n" (car(cdr(car(cdr line))))))
+	(if (null? (cdr line)) ;if list is empty
+		(void) ;do nothing
+		(if (eqv? (car(car(cdr line))) 'print) ;if print is in list
+			(print-stmt line);print what follows
+			(void) ;else do nothing
+		)
+	)
 )
+
+(define (print-stmt line)
+	;(define str (cdr(car(cdr line))))
+	(if (null? (cdr(car(cdr line))))
+		(newline)
+		(printf "~a~n" (car(cdr(car(cdr line))))))
+)
+
 
 (define (main arglist)
     (if (or (null? arglist) (not (null? (cdr arglist))))
