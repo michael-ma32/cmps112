@@ -57,53 +57,58 @@
     (dump-stdin)
 )
 
-(define (find-print filename program)
-	(map (lambda (line) (print-exist line)) program)
+(define (find-statement filename program)
+	(map (lambda (line) (statement-exist line)) program)
 )
 
-(define (print-exist line)
+(define (statement-exist line)
 	(if (null? (cdr line)) ;if no label or statement
-		(void) ;do nothing
-		(if (eqv? (car(car(cdr line))) 'print) ;if print is statement
-			(print-stmt (cdr(car(cdr line))));print what follows ;(print-stmt (cdr line))
-			(void) ;else do nothing
-		)
-	)
+                (void) ;do nothing
+                (if (eqv? (car(car(cdr line))) 'print) ;if print is statement
+                        (print-stmt (cdr(car(cdr line))));print what follows ;(print-stmt (cdr line))
+                        (if (eqv? (car(car(cdr line))) 'let)
+				(let-stmt (cdr(car(cdr line))))
+				(void))
+                )
+        )
 )
 
 (define (print-stmt printcmd)
 	(if (null? printcmd) ;if what follows print is empty
 		(void) ;skip line
-		;(printf "~a~n" (car(cdr(car(cdr line)))))) ;else print what follows
 		(find-arithmetic printcmd))
 )
 
-(define (find-arithmetic arithmeticcmd)
+(define (find-arithmetic arithmeticcmd) 
 	(if (null? (cdr arithmeticcmd)) ;if no arithmetic
-		(printf "~a~n" (car arithmeticcmd)) ;print arg that comes right after print statement
-		(do-arithmetic arithmeticcmd)) ;else do arithmetic operation
+		(printf "~a~n" (car arithmeticcmd))
+		(do-arithmetic arithmeticcmd) ;else do arithmetic operation
+	)
 )
 
 (define (do-arithmetic evalarithmetic)
-	(printf "~a" (car evalarithmetic)) ;print equation
-	;(printf "~a~n" ((function-get (car(car(cdr(cdr(car(cdr line))))))) (car(cdr(car(cdr(cdr(car(cdr line))))))) (car(cdr(cdr(car(cdr(cdr(car(cdr line)))))))))+
-	;(printf "~a~n" (function-get (car(car(cdr(evalarithemtic))))))
-	;(printf "~a~n" ((function-get (car(car(cdr evalarithmetic)))) (car(cdr(car(cdr evalarithmetic)))) (car(cdr(cdr(car(cdr evalarithmetic))))))) ;print operator
-	(print-ans evalarithmetic)
-	;(printf "~a~n" (car(car(cdr(cdr(car(cdr line)))))))
-	;(printf "~a~n" (car(cdr(car(cdr(cdr(car(cdr line))))))))
+        (printf "~a" (car evalarithmetic)) ;print equation
+	(if (not (pair? (car(cdr evalarithmetic))))
+		(printf "~a~n" (variable-get (car(cdr evalarithmetic))))
+        	(printf "~a~n" (evaluate-expression (car(cdr evalarithmetic))))
+	)
 )
 
-(define (print-ans answer)
-	(if (number? (car(cdr(car(cdr answer)))))
-		(printf "~a~n" ((function-get (car(car(cdr answer)))) (car(cdr(car(cdr answer)))) (car(cdr(cdr(car(cdr answer)))))))
-		(recursion-op answer))
-)
+(define (let-stmt letcmd) ;;;;;;;;;;;;;;;;;;;;;
+        (if (null? (cdr letcmd)) ;if no arithmetic after let
+                (variable-put! (car letcmd) (car letcmd)) ;let arg that comes right after let statement be a variable in variable-table
+                (variable-put! (car letcmd) (evaluate-expression (car(cdr letcmd))))
+	)
+)                
 
-(define (recursion-op answer)
-	;(printf "~a~n" ((function-get (car(car(cdr(car(cdr answer)))))) (car(cdr(car(cdr(car(cdr answer)))))) (car(cdr(cdr(car(cdr(car(cdr answer)))))))))
-	;(printf "~a~n" ((function-get (car(car(cdr(cdr(car(cdr answer))))))) (car(cdr(car(cdr(cdr(car(cdr answer))))))) (car(cdr(cdr(car(cdr(cdr(car(cdr answer))))))))))
-	(printf "~a~n" ((function-get (car(car(cdr answer)))) ((function-get (car(car(cdr(car(cdr answer)))))) (car(cdr(car(cdr(car(cdr answer)))))) (car(cdr(cdr(car(cdr(car(cdr answer)))))))) ((function-get (car(car(cdr(cdr(car(cdr answer))))))) (car(cdr(car(cdr(cdr(car(cdr answer))))))) (car(cdr(cdr(car(cdr(cdr(car(cdr answer)))))))))))
+(define (evaluate-expression expr)
+        (if (number? expr) ;if expr is number
+                (+ 0 expr) ;return expr
+                (if (pair? (cdr(cdr expr))) ;if e1 and e2 exist
+                        (evaluate-expression ((function-get (car expr)) (evaluate-expression (car(cdr expr))) (evaluate-expression (car(cdr(cdr expr))))))
+                        (evaluate-expression ((function-get (car expr)) (evaluate-expression (car(cdr expr))))) ;else only e1 exists
+		)
+	)
 )
 
 (define (create-label-table filename program)
@@ -121,34 +126,6 @@
 
 (define *label-table* (make-hash))
 
-(define (interpret-program filename program)
-	(map (lambda (line) (statement-exist line)) program)
-)
-
-;(define (statement-exist line)
-;)	
-
-;(define (interpret-dim statement) 
-;)
-
-;(define (interpret-let tatement)
-;)
-
-;(define (interpret-goto statement)
-;)
-
-;(define (interpret-if statement)
-;)
-
-;(define (interpret-print statement)
-;)
-
-;(define (interpret-input statement)
-;)
-
-;(define (evaluate-expression)
-;)
-	
 (define *function-table* (make-hash))
 (define (function-get key)
 	(hash-ref *function-table* key))
@@ -207,7 +184,7 @@
         (let* ((sbprogfile (car arglist))
                 (program (readlist-from-inputfile sbprogfile)))
                 (create-label-table sbprogfile program)
-		(find-print sbprogfile program)))
+		(find-statement sbprogfile program)))
 )
 
 ;(when (terminal-port? *stdin*)
