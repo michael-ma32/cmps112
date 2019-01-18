@@ -94,19 +94,21 @@
 	)
 )
 
-(define (let-stmt letcmd) ;;;;;;;;;;;;;;;;;;;;;
-        (if (null? (cdr letcmd)) ;if no arithmetic after let
-                (variable-put! (car letcmd) (car letcmd)) ;let arg that comes right after let statement be a variable in variable-table
-                (variable-put! (car letcmd) (evaluate-expression (car(cdr letcmd))))
+(define (let-stmt letcmd) 
+        (if (not(pair? (car(cdr letcmd)))) ;if no arithmetic after let
+              (variable-put! (car letcmd) (car(cdr letcmd))) ;let arg that comes right after let statement be a variable in variable-table
+              (variable-put! (car letcmd) (evaluate-expression (car(cdr letcmd))))
 	)
-)                
+	;(printf "~a~n" (pair? (car(cdr letcmd)))) f t t
+) 
 
-(define (evaluate-expression expr)
+;;;;;;;;;;;;;case if symbol? exists 
+(define (evaluate-expression expr) ;recursion
         (if (number? expr) ;if expr is number
                 (+ 0 expr) ;return expr
                 (if (pair? (cdr(cdr expr))) ;if e1 and e2 exist
                         (evaluate-expression ((function-get (car expr)) (evaluate-expression (car(cdr expr))) (evaluate-expression (car(cdr(cdr expr))))))
-                        (evaluate-expression ((function-get (car expr)) (evaluate-expression (car(cdr expr))))) ;else only e1 exists
+                        (evaluate-expression ((function-get (car expr)) (evaluate-expression (car(cdr expr))))) ;else only e1 exists		
 		)
 	)
 )
@@ -150,7 +152,7 @@
 		(cos	,cos)
 		(exp	,exp)
 		(floor	,floor)
-		(log	,log)
+		(log	,(lambda(x)(log (if (equal? x 0) 0.0 x)))) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 		(log10	,(lambda (x) (/ (log x) (log 10.0))))
 		(log2	,(lambda (x) (/ (log x) (log 2.0))))
 		(round	,round)
