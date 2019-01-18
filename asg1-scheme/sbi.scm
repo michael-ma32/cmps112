@@ -67,8 +67,12 @@
                 (if (eqv? (car(car(cdr line))) 'print) ;if print is statement
                         (print-stmt (cdr(car(cdr line))));print what follows ;(print-stmt (cdr line))
                         (if (eqv? (car(car(cdr line))) 'let)
-				(let-stmt (cdr(car(cdr line))))
-				(void))
+				(let-stmt (cdr(car(cdr line)))) ;;;;;;;;;;;;;;
+				(if (eqv? (car(car(cdr line))) 'dim)
+					(dim-stmt (cdr(car(cdr line))))
+					(void)
+				)
+			)
                 )
         )
 )
@@ -80,9 +84,16 @@
 )
 
 (define (find-arithmetic arithmeticcmd) 
-	(if (null? (cdr arithmeticcmd)) ;if no arithmetic
-		(printf "~a~n" (car arithmeticcmd))
-		(do-arithmetic arithmeticcmd) ;else do arithmetic operation
+	(if (null? (cdr arithmeticcmd)) ;if no arithmetic, print out simple statement or variable stored in hash table
+		(if (pair? (car arithmeticcmd))
+			(if (symbol? (car(car arithmeticcmd))) ;if printing array element
+				(printf "~a~n" (variable-get (car arithmeticcmd))) ;print array element
+				(void))
+			(if (symbol? (car arithmeticcmd)) ;if variable
+				(printf "~a~n" (variable-get (car arithmeticcmd))) ;print variable from hash table
+				(printf "~a~n" (car arithmeticcmd))) ;else print simple statement
+		)
+		(do-arithmetic arithmeticcmd) ;do arithmetic operations
 	)
 )
 
@@ -102,13 +113,25 @@
 	;(printf "~a~n" (pair? (car(cdr letcmd)))) f t t
 ) 
 
-;;;;;;;;;;;;;case if symbol? exists 
+(define (dim-stmt dimcmd)
+	;(printf "~a~n" (car(cdr(car dimcmd))))
+	;(printf "~a~n" (car(cdr(cdr(car dimcmd)))))
+	;(function-put! (car(cdr(car dimcmd))) (car(cdr(cdr(car dimcmd))))) ;put array in function table
+	(variable-put! (car(cdr(car dimcmd))) (make-vector (car(cdr(cdr(car dimcmd)))))) ;make array and put in function table
+)
+
 (define (evaluate-expression expr) ;recursion
         (if (number? expr) ;if expr is number
                 (+ 0 expr) ;return expr
-                (if (pair? (cdr(cdr expr))) ;if e1 and e2 exist
-                        (evaluate-expression ((function-get (car expr)) (evaluate-expression (car(cdr expr))) (evaluate-expression (car(cdr(cdr expr))))))
-                        (evaluate-expression ((function-get (car expr)) (evaluate-expression (car(cdr expr))))) ;else only e1 exists		
+		(if (symbol? expr) ;if expr is in hash table
+			(variable-get expr) ;return value of expr
+			(if (string? expr)
+				(vector-set! (variable-get (car(cdr expr))) (car(cdr(cdr expr))) 9)
+                		(if (pair? (cdr(cdr expr))) ;if e1 and e2 exist
+                        		(evaluate-expression ((function-get (car expr)) (evaluate-expression (car(cdr expr))) (evaluate-expression (car(cdr(cdr expr))))))
+                        		(evaluate-expression ((function-get (car expr)) (evaluate-expression (car(cdr expr))))) ;else only e1 exists		
+				)
+			)
 		)
 	)
 )
@@ -152,7 +175,7 @@
 		(cos	,cos)
 		(exp	,exp)
 		(floor	,floor)
-		(log	,(lambda(x)(log (if (equal? x 0) 0.0 x)))) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+		(log	,(lambda(x)(log (if (equal? x 0) 0.0 x)))) 
 		(log10	,(lambda (x) (/ (log x) (log 10.0))))
 		(log2	,(lambda (x) (/ (log x) (log 2.0))))
 		(round	,round)
