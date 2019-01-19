@@ -61,20 +61,41 @@
 	(map (lambda (line) (statement-exist line)) program)
 )
 
-(define (statement-exist line)
-	(if (null? (cdr line)) ;if no label or statement
-                (void) ;do nothing
+(define (interpret-program program)
+	(cond ((null? (cdr(car program))) ;only line number
+		(if (null? (cdr program)) ;check if end of list
+			(void) ;end of file
+			(interpret-program (cdr program)))) ;skip line
+		((pair? (car(cdr(car program)))) ;statement but no label
+		(statement-exist (car program)) ;check which statement it is
+		(if (null? (cdr program)) ;check if end of list 
+			(void) ;end of file
+			(interpret-program (cdr program)))) ;else go to next line
+		((null? (cdr program)) ;label but no statement
+		(void)) ;end scan
+	(else ;both label and statement
+		(statement-exist (cdr(car program))) ;check which statement it is
+		(interpret-program (cdr program))) ;go to next line
+	)
+)
+
+(define (statement-exist line) ;only works when there's a statement but no label
+	;(if (null? (cdr line)) ;if no label or statement
+                ;(void) ;do nothing
                 (if (eqv? (car(car(cdr line))) 'print) ;if print is statement
                         (print-stmt (cdr(car(cdr line))));print what follows ;(print-stmt (cdr line))
                         (if (eqv? (car(car(cdr line))) 'let)
 				(let-stmt (cdr(car(cdr line)))) ;;;;;;;;;;;;;;
 				(if (eqv? (car(car(cdr line))) 'dim)
 					(dim-stmt (cdr(car(cdr line))))
-					(void)
+					(if (eqv? (car(car(cdr line))) 'goto)
+						(goto-stmt (cdr(car(cdr line))))
+						(void)
+					)
 				)
 			)
                 )
-        )
+        ;)
 )
 
 (define (print-stmt printcmd)
@@ -114,10 +135,13 @@
 ) 
 
 (define (dim-stmt dimcmd)
-	;(printf "~a~n" (car(cdr(car dimcmd))))
-	;(printf "~a~n" (car(cdr(cdr(car dimcmd)))))
-	;(function-put! (car(cdr(car dimcmd))) (car(cdr(cdr(car dimcmd))))) ;put array in function table
 	(variable-put! (car(cdr(car dimcmd))) (make-vector (car(cdr(cdr(car dimcmd)))))) ;make array and put in function table
+)
+
+(define (goto-stmt gotocmd) ;;;;;;;;;;
+	(if (eqv? (car gotocmd) 'done) ;if read in done
+		(exit) ;exit program
+		(interpret-program (label-get (car gotocmd))))
 )
 
 (define (evaluate-expression expr) ;recursion
@@ -125,8 +149,8 @@
                 (+ 0 expr) ;return expr
 		(if (symbol? expr) ;if expr is in hash table
 			(variable-get expr) ;return value of expr
-			(if (string? expr)
-				(vector-set! (variable-get (car(cdr expr))) (car(cdr(cdr expr))) 9)
+			(if (string? expr) ;if expr is asub
+				(vector-set! (variable-get (car(cdr expr))) (car(cdr(cdr expr))) 9) ;hard code return vector element 9
                 		(if (pair? (cdr(cdr expr))) ;if e1 and e2 exist
                         		(evaluate-expression ((function-get (car expr)) (evaluate-expression (car(cdr expr))) (evaluate-expression (car(cdr(cdr expr))))))
                         		(evaluate-expression ((function-get (car expr)) (evaluate-expression (car(cdr expr))))) ;else only e1 exists		
@@ -136,20 +160,29 @@
 	)
 )
 
-(define (create-label-table filename program)
-	(map (lambda (line) (fill-label-table line)) program)
-)
-
-(define (fill-label-table line)
-	(cond ((null? (cdr line)) ;no label, no stastement
-        	(void)) ;don't put anything in label-table
-		((pair? (cadr line)) ;no label, yes statement
-              	(void)) ;don't put anything in label table
-        (else 
-             (hash-set! *label-table* (cadr line) line))) ;put label in label table
+(define (create-label-table program)
+	(cond ((null? (cdr(car program))) ;if line only contains line number
+		(if (null? (cdr program))
+			(void)
+			(create-label-table (cdr program))))
+		((pair? (car(cdr(car program)))) ;if line contains statement but no label
+		(if (null? (cdr program)) ;if line is empty list
+			(void) ;reached end of file
+			(create-label-table (cdr program)))) ;skip line
+		((null? (cdr program)) ;if line contains label but no statement
+		(void)) ;reached end of file
+	(else ;lines contains line number, label, and statement
+		;(printf "~s~n" program)
+		;(hash-set! *label-table* (car(cdr(car program))) (append (car(cdr(cdr(car program)))) (cdr program)) ) ;hash label as key, everything after it as value
+		;(hash-set! *label-table* (car(cdr(car program))) (append (car program) (cdr program)))
+		(hash-set! *label-table* (car(cdr(car program))) program) ;hash whole line and rest of the program into table
+		(create-label-table (cdr program))) ;read next line
+	)
 )
 
 (define *label-table* (make-hash))
+(define (label-get key)
+        (hash-ref *label-table* key))
 
 (define *function-table* (make-hash))
 (define (function-get key)
@@ -195,7 +228,7 @@
 (for-each
         (lambda (pair)
                 (variable-put! (car pair) (cadr pair)))
-        '(
+        `(
 		(nan	,(/ 0.0 0.0))
 		(eof	,0.0)
 		(pi	,acos -1.0)
@@ -208,8 +241,9 @@
         (usage-exit)
         (let* ((sbprogfile (car arglist))
                 (program (readlist-from-inputfile sbprogfile)))
-                (create-label-table sbprogfile program)
-		(find-statement sbprogfile program)))
+                (create-label-table program)
+		;(find-statement sbprogfile program)))
+		(interpret-program program)))
 )
 
 ;(when (terminal-port? *stdin*)
