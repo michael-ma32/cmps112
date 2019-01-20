@@ -90,7 +90,10 @@
 					(dim-stmt (cdr(car(cdr line))))
 					(if (eqv? (car(car(cdr line))) 'goto)
 						(goto-stmt (cdr(car(cdr line))))
-						(void)
+						(if (eqv? (car(car(cdr line))) 'if)
+							(if-stmt (cdr(car(cdr line))))
+							(void)
+						)
 					)
 				)
 			)
@@ -142,6 +145,32 @@
 	(if (eqv? (car gotocmd) 'done) ;if read in done
 		(exit) ;exit program
 		(interpret-program (label-get (car gotocmd))))
+)
+
+(define (if-stmt ifcmd) ;;;;;;;;;;;;;;;;;;;;;;;;;;;; finish cases for remaining operations
+	(cond ((eqv? (car(car ifcmd)) '=)
+		(printf "~a~n" (cdr(car ifcmd))))
+		((eqv? (car(car ifcmd)) '<)
+		(printf "~a~n" (cdr(car ifcmd))))
+		((eqv? (car(car ifcmd)) '>)
+                (printf "~a~n" (cdr(car ifcmd))))
+		((eqv? (car(car ifcmd)) '<>)
+                (printf "~a~n" (cdr(car ifcmd))))
+		((eqv? (car(car ifcmd)) '>=)
+                (printf "~a~n" (cdr(car ifcmd))))
+		((eqv? (car(car ifcmd)) '<=)
+			(if (symbol? (car(cdr(car ifcmd)))) ;if e1 is variable
+				(if (symbol? (car(cdr(cdr(car ifcmd))))) ;if e2 is also variable
+					(variable-get (car(cdr(car ifcmd)))) ; (variable-get (car(cdr(cdr(car ifcmd)))))
+					(if (<= (variable-get (car(cdr(car ifcmd)))) (car(cdr(cdr(car ifcmd))))) ;else e2 not a variable and if e1 variable leq e2
+						(interpret-program (label-get (car(cdr ifcmd))))
+						(exit)
+					)
+				)
+				(void) ;do nothing because e1 is always a variable
+			)
+		)
+	)
 )
 
 (define (evaluate-expression expr) ;recursion
