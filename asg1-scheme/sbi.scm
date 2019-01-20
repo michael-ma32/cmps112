@@ -122,7 +122,9 @@
 )
 
 (define (do-arithmetic evalarithmetic)
-        (printf "~a" (car evalarithmetic)) ;print equation
+	(if (symbol? (car evalarithmetic)) 
+		(printf "~a " (variable-get (car evalarithmetic)))
+        	(printf "~a" (car evalarithmetic))) ;else print equation
 	(if (not (pair? (car(cdr evalarithmetic))))
 		(printf "~a~n" (variable-get (car(cdr evalarithmetic))))
         	(printf "~a~n" (evaluate-expression (car(cdr evalarithmetic))))
@@ -260,7 +262,7 @@
         `(
 		(nan	,(/ 0.0 0.0))
 		(eof	,0.0)
-		(pi	,acos -1.0)
+		(pi	,(acos -1.0))
 		(e	,(exp 1.0))
         )
 )
