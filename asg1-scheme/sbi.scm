@@ -84,15 +84,18 @@
                 ;(void) ;do nothing
                 (if (eqv? (car(car(cdr line))) 'print) ;if print is statement
                         (print-stmt (cdr(car(cdr line))));print what follows ;(print-stmt (cdr line))
-                        (if (eqv? (car(car(cdr line))) 'let)
+                        (if (eqv? (car(car(cdr line))) 'let) ;if let is statement
 				(let-stmt (cdr(car(cdr line)))) ;;;;;;;;;;;;;;
-				(if (eqv? (car(car(cdr line))) 'dim)
+				(if (eqv? (car(car(cdr line))) 'dim) ;if dim is statement
 					(dim-stmt (cdr(car(cdr line))))
-					(if (eqv? (car(car(cdr line))) 'goto)
+					(if (eqv? (car(car(cdr line))) 'goto) ;if goto is statement
 						(goto-stmt (cdr(car(cdr line))))
-						(if (eqv? (car(car(cdr line))) 'if)
+						(if (eqv? (car(car(cdr line))) 'if) ;if if is statement
 							(if-stmt (cdr(car(cdr line))))
-							(void)
+							(if (eqv? (car(car(cdr line))) 'input)
+								(input-stmt (cdr(car(cdr line))))
+								(void)
+							)
 						)
 					)
 				)
@@ -122,21 +125,40 @@
 )
 
 (define (do-arithmetic evalarithmetic)
+	;(printf "~a~n" (car evalarithmetic)) ;fib(
+	;(printf "~a~n" (car(cdr evalarithmetic))) ;0
+	;(printf "~a~n" (car(cdr(cdr evalarithmetic))));)=
+	;(printf "~a~n" (car(cdr(cdr(cdr evalarithmetic))))) ;fib0
 	(if (symbol? (car evalarithmetic)) 
 		(printf "~a " (variable-get (car evalarithmetic)))
         	(printf "~a" (car evalarithmetic))) ;else print equation
 	(if (not (pair? (car(cdr evalarithmetic))))
-		(printf "~a~n" (variable-get (car(cdr evalarithmetic))))
+		(cond ((number? (car(cdr evalarithmetic))) ;fib
+			(printf " ~a " (+ (car(cdr evalarithmetic)) 0.0))
+			(printf "~a " (car(cdr(cdr evalarithmetic))))
+			(printf "~a~n" (+ (variable-get (car(cdr(cdr(cdr evalarithmetic))))) 0.0)))
+		(else 
+			(printf " ~a" (+ (variable-get (car(cdr evalarithmetic))) 0.0))
+			(cond ((null? (cdr(cdr evalarithmetic)))
+				(newline))
+			(else
+				(printf " ~a " (car(cdr(cdr evalarithmetic))))
+				(printf "~a~n" (+ (variable-get (car(cdr(cdr(cdr evalarithmetic))))) 0.0)))))
+		)
         	(printf "~a~n" (evaluate-expression (car(cdr evalarithmetic))))
 	)
 )
 
 (define (let-stmt letcmd) 
         (if (not(pair? (car(cdr letcmd)))) ;if no arithmetic after let
-              (variable-put! (car letcmd) (car(cdr letcmd))) ;let arg that comes right after let statement be a variable in variable-table
-              (variable-put! (car letcmd) (evaluate-expression (car(cdr letcmd))))
+		(if (symbol? (car(cdr letcmd))) ;if putting variable into let variable
+			(variable-put! (car letcmd) (variable-get (car(cdr letcmd)))) ;let arg that comes right after let statement be a variable in variable-table
+			(variable-put! (car letcmd) (car(cdr letcmd)))
+		)
+              	(variable-put! (car letcmd) (evaluate-expression (car(cdr letcmd))))
 	)
 	;(printf "~a~n" (pair? (car(cdr letcmd)))) f t t
+	;(printf "~a~n" (car(cdr letcmd)))
 ) 
 
 (define (dim-stmt dimcmd)
@@ -160,10 +182,12 @@
                 (printf "~a~n" (cdr(car ifcmd))))
 		((eqv? (car(car ifcmd)) '>=)
                 (printf "~a~n" (cdr(car ifcmd))))
-		((eqv? (car(car ifcmd)) '<=)
+		((eqv? (car(car ifcmd)) '<=) ;;;;;;;;;;;;;;;;;
 			(if (symbol? (car(cdr(car ifcmd)))) ;if e1 is variable
 				(if (symbol? (car(cdr(cdr(car ifcmd))))) ;if e2 is also variable
-					(variable-get (car(cdr(car ifcmd)))) ; (variable-get (car(cdr(cdr(car ifcmd)))))
+					(if (<= (variable-get (car(cdr(car ifcmd)))) (variable-get (car(cdr(cdr(car ifcmd)))))) ;if e1 leq e2
+						(interpret-program (label-get (car(cdr ifcmd))))
+						(exit))
 					(if (<= (variable-get (car(cdr(car ifcmd)))) (car(cdr(cdr(car ifcmd))))) ;else e2 not a variable and if e1 variable leq e2
 						(interpret-program (label-get (car(cdr ifcmd))))
 						(exit)
@@ -174,6 +198,10 @@
 		)
 	)
 )
+
+;(define (input-stmt inputcmd)
+;	
+;)
 
 (define (evaluate-expression expr) ;recursion
         (if (number? expr) ;if expr is number
