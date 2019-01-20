@@ -173,7 +173,12 @@
 
 (define (if-stmt ifcmd) ;;;;;;;;;;;;;;;;;;;;;;;;;;;; finish cases for remaining operations
 	(cond ((eqv? (car(car ifcmd)) '=)
-		(printf "~a~n" (cdr(car ifcmd))))
+		;(printf "~a~n" (car(cdr(car ifcmd)))) ;tennessee
+		;(printf "~a~n" (car(cdr(cdr(car ifcmd))))) ;0
+		(if (= (variable-get (car(cdr(car ifcmd)))) (car(cdr(cdr(car ifcmd))))) ;if tennessee = 0
+			(interpret-program (label-get (car(cdr ifcmd)))) ;prt => go to prt label
+			(void)))
+		;(printf "~a~n" (cdr(car ifcmd))))
 		((eqv? (car(car ifcmd)) '<)
 		(printf "~a~n" (cdr(car ifcmd))))
 		((eqv? (car(car ifcmd)) '>)
@@ -199,9 +204,23 @@
 	)
 )
 
-;(define (input-stmt inputcmd)
-;	
-;)
+(define (input-stmt inputcmd)
+	;(printf "~a~n" (car inputcmd)) ; tennessee
+	(let ((number (readnumber)))
+             (if (eof-object? number)
+                 (printf "*EOF* ~a~n" number)
+                 (begin (variable-put! (car inputcmd) number) ;store in variable table
+                        (void))))
+)
+
+(define (readnumber)
+        (let ((object (read)))
+             (cond [(eof-object? object) object]
+                   [(number? object) (+ object 0.0)]
+                   [else (begin (printf "invalid number: ~a~n" object)
+                                (readnumber))] )) 
+)
+
 
 (define (evaluate-expression expr) ;recursion
         (if (number? expr) ;if expr is number
