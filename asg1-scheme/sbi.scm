@@ -182,9 +182,15 @@
 				(void)))
 		;(printf "~a~n" (cdr(car ifcmd))))
 		((eqv? (car(car ifcmd)) '<)
-		(printf "~a~n" (cdr(car ifcmd))))
+			(if (< (variable-get (car(cdr(car ifcmd)))) (car(cdr(cdr(car ifcmd)))))
+				(interpret-program (label-get (car(cdr ifcmd))))
+				(variable-get 'nan)))
+		;(printf "~a~n" (cdr(car ifcmd))))
 		((eqv? (car(car ifcmd)) '>)
-                (printf "~a~n" (cdr(car ifcmd))))
+			(if (> (variable-get (car(cdr(car ifcmd)))) (variable-get (car(cdr(cdr(car ifcmd))))))
+				(interpret-program (label-get (car(cdr ifcmd))))
+				(void)))
+                ;(printf "~a~n" (car(cdr ifcmd))))
 		((eqv? (car(car ifcmd)) '>=)
                 (printf "~a~n" (cdr(car ifcmd))))
 		((eqv? (car(car ifcmd)) '<=) ;;;;;;;;;;;;;;;;;
@@ -222,8 +228,8 @@
         (let ((object (read)))
              (cond [(eof-object? object) object]
                    [(number? object) (+ object 0.0)]
-                   [else (begin (printf "invalid number: ~a~n" object)
-                                (readnumber))] )) 
+                   [else (begin (variable-put! 'eof 1.0)
+                                )] )) 
 )
 
 
