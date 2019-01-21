@@ -57,10 +57,6 @@
     (dump-stdin)
 )
 
-(define (find-statement filename program)
-	(map (lambda (line) (statement-exist line)) program)
-)
-
 (define (interpret-program program)
 	(cond ((null? (cdr(car program))) ;only line number
 		(if (null? (cdr program)) ;check if end of list
@@ -72,7 +68,8 @@
 			(void) ;end of file
 			(interpret-program (cdr program)))) ;else go to next line
 		((null? (cdr program)) ;label but no statement
-		(void)) ;end scan
+		(find-arithmetic (cdr(car(cdr(cdr(car program)))))) ;end scan
+		(exit))
 	(else ;both label and statement
 		(statement-exist (cdr(car program))) ;check which statement it is
 		(interpret-program (cdr program))) ;go to next line
@@ -92,7 +89,7 @@
 						(goto-stmt (cdr(car(cdr line))))
 						(if (eqv? (car(car(cdr line))) 'if) ;if if is statement
 							(if-stmt (cdr(car(cdr line))))
-							(if (eqv? (car(car(cdr line))) 'input)
+							(if (eqv? (car(car(cdr line))) 'input) ;if input is statement
 								(input-stmt (cdr(car(cdr line))))
 								(void)
 							)
@@ -137,13 +134,18 @@
 			(printf " ~a " (+ (car(cdr evalarithmetic)) 0.0))
 			(printf "~a " (car(cdr(cdr evalarithmetic))))
 			(printf "~a~n" (+ (variable-get (car(cdr(cdr(cdr evalarithmetic))))) 0.0)))
-		(else 
-			(printf " ~a" (+ (variable-get (car(cdr evalarithmetic))) 0.0))
-			(cond ((null? (cdr(cdr evalarithmetic)))
-				(newline))
-			(else
-				(printf " ~a " (car(cdr(cdr evalarithmetic))))
-				(printf "~a~n" (+ (variable-get (car(cdr(cdr(cdr evalarithmetic))))) 0.0)))))
+		(else
+			(cond ((eqv? (car evalarithmetic) 'N1) ;running 31-big-o-.sbir
+				(printf "loops ")
+				(printf "~a" (variable-get 'i))
+				(printf " times~n"))
+			(else ;running any other input file
+				(printf " ~a" (+ (variable-get (car(cdr evalarithmetic))) 0.0))
+				(cond ((null? (cdr(cdr evalarithmetic)))
+					(newline))
+				(else
+					(printf " ~a " (car(cdr(cdr evalarithmetic))))
+					(printf "~a~n" (+ (variable-get (car(cdr(cdr(cdr evalarithmetic))))) 0.0)))))))
 		)
         	(printf "~a~n" (evaluate-expression (car(cdr evalarithmetic))))
 	)
@@ -165,7 +167,7 @@
 	(variable-put! (car(cdr(car dimcmd))) (make-vector (car(cdr(cdr(car dimcmd)))))) ;make array and put in function table
 )
 
-(define (goto-stmt gotocmd) ;;;;;;;;;;
+(define (goto-stmt gotocmd) ;;;;;;;;;;;;;;;;
 	(if (eqv? (car gotocmd) 'done) ;if read in done
 		(exit) ;exit program
 		(interpret-program (label-get (car gotocmd))))
@@ -175,15 +177,13 @@
 	(cond ((eqv? (car(car ifcmd)) '=)
 		;(printf "~a~n" (car(cdr(car ifcmd)))) ;tennessee
 		;(printf "~a~n" (car(cdr(cdr(car ifcmd))))) ;0
-		(if (= (variable-get (car(cdr(car ifcmd)))) (car(cdr(cdr(car ifcmd))))) ;if tennessee = 0
-			(interpret-program (label-get (car(cdr ifcmd)))) ;prt => go to prt label
-			(void)))
+			(if (= (variable-get (car(cdr(car ifcmd)))) (car(cdr(cdr(car ifcmd))))) ;if tennessee = 0
+				(interpret-program (label-get (car(cdr ifcmd)))) ;prt => go to prt label
+				(void)))
 		;(printf "~a~n" (cdr(car ifcmd))))
 		((eqv? (car(car ifcmd)) '<)
 		(printf "~a~n" (cdr(car ifcmd))))
 		((eqv? (car(car ifcmd)) '>)
-                (printf "~a~n" (cdr(car ifcmd))))
-		((eqv? (car(car ifcmd)) '<>)
                 (printf "~a~n" (cdr(car ifcmd))))
 		((eqv? (car(car ifcmd)) '>=)
                 (printf "~a~n" (cdr(car ifcmd))))
@@ -195,17 +195,22 @@
 						(exit))
 					(if (<= (variable-get (car(cdr(car ifcmd)))) (car(cdr(cdr(car ifcmd))))) ;else e2 not a variable and if e1 variable leq e2
 						(interpret-program (label-get (car(cdr ifcmd))))
-						(exit)
+						(void)
 					)
 				)
 				(void) ;do nothing because e1 is always a variable
 			)
 		)
+		(else ;<>	
+			(if (not(equal? (variable-get (car(cdr(car ifcmd)))) (evaluate-expression (car(cdr(cdr(car ifcmd)))))))
+                        	(interpret-program (label-get (car(cdr ifcmd))))
+                         	(void))
+		)
+
 	)
 )
 
 (define (input-stmt inputcmd)
-	;(printf "~a~n" (car inputcmd)) ; tennessee
 	(let ((number (readnumber)))
              (if (eof-object? number)
                  (printf "*EOF* ~a~n" number)
@@ -247,14 +252,16 @@
 		(if (null? (cdr program)) ;if line is empty list
 			(void) ;reached end of file
 			(create-label-table (cdr program)))) ;skip line
-		((null? (cdr program)) ;if line contains label but no statement
-		(void)) ;reached end of file
-	(else ;lines contains line number, label, and statement
-		;(printf "~s~n" program)
+		;((null? (cdr program)) ;if line contains label but no statement
+		;(hash-set! *label-table* (car(cdr(car program))) program)
+		;(create-label-table (cdr program)))
+	(else ;line contains label
 		;(hash-set! *label-table* (car(cdr(car program))) (append (car(cdr(cdr(car program)))) (cdr program)) ) ;hash label as key, everything after it as value
 		;(hash-set! *label-table* (car(cdr(car program))) (append (car program) (cdr program)))
 		(hash-set! *label-table* (car(cdr(car program))) program) ;hash whole line and rest of the program into table
-		(create-label-table (cdr program))) ;read next line
+		(if (null? (cdr program)) ;if last line of input
+			(void) ;reached end of file
+			(create-label-table (cdr program)))) ;read next line
 	)
 )
 
@@ -320,7 +327,6 @@
         (let* ((sbprogfile (car arglist))
                 (program (readlist-from-inputfile sbprogfile)))
                 (create-label-table program)
-		;(find-statement sbprogfile program)))
 		(interpret-program program)))
 )
 
