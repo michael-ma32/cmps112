@@ -26,12 +26,28 @@ let rec eval_expr (expr : Absyn.expr) : float = match expr with
 		f e1 
     | Binary (oper, expr1, expr2) ->
 		let e1 = eval_expr expr1 in
-		let e2 = eval_expr expr2 in
+                let e2 = eval_expr expr2 in
 		let f = Hashtbl.find Tables.binary_fn_table oper in
 		f e1 e2
 
-let interp_goto labsl = 
-	Some (Hashtbl.find Tables.label_table labsl)
+let eval_pervasive (expr: Absyn.expr) = match expr with 
+	| Number number -> unimpl "error"
+    	| Memref memref -> unimpl "error"
+	| Unary (oper, expr) -> unimpl "error"
+	| Binary (oper, expr1, expr2) ->
+		let e1 = eval_expr expr1 in
+        	let e2 = eval_expr expr2 in
+        	let f = Hashtbl.find Tables.binary_pervasive_fn_table oper in
+		f e1 e2
+
+let interp_if expr label =
+	let checkif = eval_pervasive expr in
+		match checkif with 
+		| true -> Some (Hashtbl.find Tables.label_table label)
+		| false -> None (* FIX THIS *)
+
+let interp_goto label = 
+	Some (Hashtbl.find Tables.label_table label)
 
 let interp_dim ident expr = (* hard coded *) 
 	let array_index_float = eval_expr expr in
@@ -72,8 +88,8 @@ let interp_input (memref_list : Absyn.memref list) =
 let interp_stmt (stmt : Absyn.stmt) = match stmt with
     | Dim (ident, expr) -> interp_dim ident expr; None
     | Let (memref, expr) -> interp_let memref expr; None
-    | Goto labsl -> interp_goto labsl
-    | If (expr, label) -> unimpl "If (expr, label)"
+    | Goto label -> interp_goto label
+    | If (expr, label) -> interp_if expr label
     | Print print_list -> interp_print print_list; None
     | Input memref_list -> interp_input memref_list; None
 
