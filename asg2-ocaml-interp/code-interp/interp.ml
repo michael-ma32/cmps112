@@ -11,10 +11,15 @@ let rec eval_expr (expr : Absyn.expr) : float = match expr with
     | Number number -> number
     | Memref memref -> 
 		(match memref with
-			| Arrayref (ident, expr) -> unimpl "array"
+			| Arrayref (ident, expr) -> 
+				let dimarray = Hashtbl.find Tables.array_table ident in
+				let array_index_float = eval_expr expr in
+			        let array_index_int = int_of_float array_index_float in
+				dimarray.(array_index_int)
         		| Variable (ident) -> 
 				let f = Hashtbl.find Tables.variable_table ident in
-				f)
+				f
+		)
     | Unary (oper, expr) -> 
 		let e1 = eval_expr expr in 
 		let f = Hashtbl.find Tables.unary_fn_table oper in
@@ -25,8 +30,21 @@ let rec eval_expr (expr : Absyn.expr) : float = match expr with
 		let f = Hashtbl.find Tables.binary_fn_table oper in
 		f e1 e2
 
+let interp_goto labsl = 
+	Some (Hashtbl.find Tables.label_table labsl)
+
+let interp_dim ident expr = (* hard coded *) 
+	let array_index_float = eval_expr expr in
+	let array_index_int = int_of_float array_index_float in
+	let dimarray = Array.make array_index_int 0.0 in
+	Hashtbl.add Tables.array_table ident dimarray (* "a" "dimarray" *)
+
 let interp_let memref expr = match memref with 
-	| Arrayref (ident, expr) -> unimpl "array"
+	| Arrayref (ident, expr) ->
+		let dimarray = Hashtbl.find Tables.array_table ident in
+		let array_index_float = eval_expr expr in
+		let array_index_int = int_of_float array_index_float in
+		dimarray.(array_index_int) <- 9.0
 	| Variable (ident) -> 
 		let e1 = eval_expr expr in
 		Hashtbl.add Tables.variable_table ident e1
@@ -51,18 +69,24 @@ let interp_input (memref_list : Absyn.memref list) =
     in List.iter input_number memref_list
 
 let interp_stmt (stmt : Absyn.stmt) = match stmt with
-    | Dim (ident, expr) -> unimpl "Dim (ident, expr)"
-    | Let (memref, expr) -> interp_let memref expr
-    | Goto labsl -> unimpl "Goto labsl"
+    | Dim (ident, expr) -> interp_dim ident expr; None
+    | Let (memref, expr) -> interp_let memref expr; None
+    | Goto labsl -> interp_goto labsl
     | If (expr, label) -> unimpl "If (expr, label)"
-    | Print print_list -> interp_print print_list
-    | Input memref_list -> interp_input memref_list
+    | Print print_list -> interp_print print_list; None
+    | Input memref_list -> interp_input memref_list; None
 
 let rec interpret (program : Absyn.program) = match program with
     | [] -> ()
     | firstline::otherlines -> match firstline with
       | _, _, None -> interpret otherlines
-      | _, _, Some stmt -> (interp_stmt stmt; interpret otherlines)
+      | _, _, Some stmt -> 
+		let next_line = interp_stmt stmt 
+		in match next_line with
+			| None -> interpret otherlines
+			| Some line -> interpret line
+		(*(interp_stmt stmt; 
+		interpret otherlines)*)
 
 let interpret_program program =
     (Tables.init_label_table program; 
