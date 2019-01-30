@@ -39,14 +39,15 @@ let interp_dim ident expr = (* hard coded *)
 	let dimarray = Array.make array_index_int 0.0 in
 	Hashtbl.add Tables.array_table ident dimarray (* "a" "dimarray" *)
 
-let interp_let memref expr = match memref with 
-	| Arrayref (ident, expr) ->
+let interp_let memref rightexpr = match memref with 
+	| Arrayref (ident, leftexpr) ->
 		let dimarray = Hashtbl.find Tables.array_table ident in
-		let array_index_float = eval_expr expr in
+		let array_index_float = eval_expr leftexpr in
 		let array_index_int = int_of_float array_index_float in
-		dimarray.(array_index_int) <- 9.0
+		let rightexpr_value = eval_expr rightexpr in
+		dimarray.(array_index_int) <- rightexpr_value
 	| Variable (ident) -> 
-		let e1 = eval_expr expr in
+		let e1 = eval_expr rightexpr in
 		Hashtbl.add Tables.variable_table ident e1
 
 let interp_print (print_list : Absyn.printable list) =
@@ -63,7 +64,7 @@ let interp_print (print_list : Absyn.printable list) =
 let interp_input (memref_list : Absyn.memref list) =
     let input_number memref =
         try  let number = Etc.read_number ()
-             in (print_float number; print_newline ())
+             in (print_float number; print_newline ()) (* change this line *)
         with End_of_file -> 
              (print_string "End_of_file"; print_newline ())
     in List.iter input_number memref_list
@@ -85,8 +86,6 @@ let rec interpret (program : Absyn.program) = match program with
 		in match next_line with
 			| None -> interpret otherlines
 			| Some line -> interpret line
-		(*(interp_stmt stmt; 
-		interpret otherlines)*)
 
 let interpret_program program =
     (Tables.init_label_table program; 
