@@ -44,12 +44,12 @@ let interp_if expr label =
 	let checkif = eval_pervasive expr in
 		match checkif with 
 		| true -> Some (Hashtbl.find Tables.label_table label)
-		| false -> None (* FIX THIS *)
+		| false -> None 
 
 let interp_goto label = 
 	Some (Hashtbl.find Tables.label_table label)
 
-let interp_dim ident expr = (* hard coded *) 
+let interp_dim ident expr = 
 	let array_index_float = eval_expr expr in
 	let array_index_int = int_of_float array_index_float in
 	let dimarray = Array.make array_index_int 0.0 in
@@ -79,8 +79,11 @@ let interp_print (print_list : Absyn.printable list) =
 
 let interp_input (memref_list : Absyn.memref list) =
     let input_number memref =
-        try  let number = Etc.read_number ()
-             in (print_float number; print_newline ()) (* change this line *)
+        try  let number = Etc.read_number () in 
+		match memref with
+			| Arrayref (ident, leftexpr) -> unimpl "gg"
+			| Variable (ident) ->
+				Hashtbl.add Tables.variable_table ident number
         with End_of_file -> 
              (print_string "End_of_file"; print_newline ())
     in List.iter input_number memref_list
