@@ -52,7 +52,8 @@ let interp_goto label =
 let interp_dim ident expr = 
 	let array_index_float = eval_expr expr in
 	let array_index_int = int_of_float array_index_float in
-	let dimarray = Array.make array_index_int 0.0 in
+	let array_index_basic = array_index_int + 1 in
+	let dimarray = Array.make array_index_basic 0.0 in
 	Hashtbl.add Tables.array_table ident dimarray (* "a" "dimarray" *)
 
 let interp_let memref rightexpr = match memref with 
@@ -81,11 +82,17 @@ let interp_input (memref_list : Absyn.memref list) =
     let input_number memref =
         try  let number = Etc.read_number () in 
 		match memref with
-			| Arrayref (ident, leftexpr) -> unimpl "gg"
+			| Arrayref (ident, leftexpr) -> unimpl "trying to input array"
 			| Variable (ident) ->
 				Hashtbl.add Tables.variable_table ident number
         with End_of_file -> 
-             (print_string "End_of_file"; print_newline ())
+		(match memref with 
+			| Arrayref (ident, leftexpr) -> 
+				Hashtbl.add Tables.variable_table ident nan;
+				Hashtbl.add Tables.variable_table "eof" 1.0
+			| Variable (ident) ->
+				Hashtbl.add Tables.variable_table ident nan;
+				Hashtbl.add Tables.variable_table "eof" 1.0)
     in List.iter input_number memref_list
 
 let interp_stmt (stmt : Absyn.stmt) = match stmt with
