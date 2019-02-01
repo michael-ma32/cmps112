@@ -67,7 +67,8 @@ factor     : primary POWOP factor     {Absyn.Binary ($2, $1, $3)}
 
 primary    : LPAR expr RPAR           {$2}
            | ADDOP primary            {Absyn.Unary ($1, $2)}
-           | NUMBER                   {Absyn.Number (float_of_string $1)}
+           | NUMBER                   
+                    {Absyn.Number (float_of_string $1)}
            | memref                   {Absyn.Memref $1}
            | IDENT LPAR expr RPAR     {Absyn.Unary ($1, $3)}
 

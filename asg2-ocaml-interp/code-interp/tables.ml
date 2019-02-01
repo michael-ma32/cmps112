@@ -45,8 +45,10 @@ let _ = List.map (fun (label, value) ->
                   "%", mod_float;
                   "^", ( ** )]
 
-type binary_pervasive_fn_table_t = (string, float -> float -> bool) Hashtbl.t
-let binary_pervasive_fn_table : binary_pervasive_fn_table_t = Hashtbl.create 16
+type binary_pervasive_fn_table_t = 
+(string, float -> float -> bool) Hashtbl.t
+let binary_pervasive_fn_table : binary_pervasive_fn_table_t = 
+Hashtbl.create 16
 let _ = List.map (fun (label, value) ->
                   Hashtbl.add binary_pervasive_fn_table label value)
                  ["=", (=);
