@@ -4,10 +4,12 @@ nl := Character nl.
 
 Character extend 
 [
-   isPrint [
+   isPrint 
+   [
       ^ (Character space <= self) & (self <= $~)
    ]
-   visible [
+   visible 
+   [
       self isPrint ifTrue: [^ '$', self asString]
                    ifFalse: [^ self asInteger printStringRadix: 8]
    ]
@@ -74,39 +76,59 @@ Object subclass: Leaf
    char [ ^ char ]
    count [ ^ count ]
 
-   Leaf class >> new [
+   Leaf class >> new 
+   [
       self shouldNotImplement
    ]
 
-   Leaf class >> new: aChar count: aCount [
+   Leaf class >> new: aChar count: aCount 
+   [
       |result|
       result := super new.
       result setChar: aChar andCount: aCount.
       ^result
    ]
 
-   setChar: aChar andCount: aCount [
+   setChar: aChar andCount: aCount 
+   [
       char := aChar.
       count := aCount.
    ]
 
-   <= other [
+   <= other 
+   [
       ^ (count < other count)
       | ((count = other count) & (char <= other char))
    ]
 
-   printBase: aStream [
+   printBase: aStream 
+   [
       ^ aStream << self class << '(' << char << ',' << count
    ]
 
-   printOn: aStream [
+   printOn: aStream 
+   [
       (self printBase: aStream) << ')'.
    ]
 
-   inorder: visitor prefix: string [
+   inorder: visitor prefix: string 
+   [
       visitor value: char value: string.
    ]
-
+	postorder: bitsout 
+	[
+		"write the 0 and then the byte"
+		|ascii|
+		bitsout writeBit: 0.
+		ascii := char asciiValue.
+		8 to: 1 by: -1 do: 
+		[
+			:index |
+			|curr|
+			curr := ascii bitAt: index.
+			bitsout writeBit: curr.
+		].
+	]
 ]
 
 Leaf subclass: Tree 
@@ -137,7 +159,13 @@ Leaf subclass: Tree
       left inorder: visitor prefix: string, '0'.
       right inorder: visitor prefix: string, '1'.
    ]
-
+	postorder: bitsout [
+		"recursive call post order on the children"
+		"writeout a 1 bit"
+		left postorder: bitsout.
+		right postorder: bitsout.
+		bitsout writeBit: 1.
+	]
 ]
 
 Object subclass: BitStream 
@@ -167,20 +195,42 @@ Object subclass: BitStream
    currByte [
       ^byte
    ]
-	write: node 
-	[
-		node do: 
-		[
-			:index |
-			index asString = '0'
-                		ifTrue: [stdout << '1'.]
-				ifFalse: [stdout << 'b'.].
-		]
-	]
+]
+
+Object subclass: OutBits [
+   |bitIndex currentByte myStream|
+   OutBits class >> new [
+      self shouldNotImplement.
+   ]
+   OutBits class >> new: fileStream [
+      |result|
+      result := super new.
+      result init: fileStream.
+      ^result
+   ]
+   clearByte [
+      bitIndex := 8.
+      currentByte := 0.
+   ]
+   init: fileStream [
+      myStream := fileStream.
+      self clearByte.
+   ]
+   flushByte [
+      bitIndex = 8 ifFalse: [
+         myStream nextPutByte: currentByte.
+         self clearByte.
+      ]
+   ]
+   writeBit: bit [
+      currentByte := currentByte bitAt: bitIndex put: bit.
+      bitIndex := bitIndex - 1.
+      bitIndex = 0 ifTrue: [self flushByte].
+   ]
 ]
 
 Smalltalk arguments size = 0
-	ifTrue: [stdout << 'You fucked up' << nl]
+	ifTrue: [stdout << 'unimpl' << nl]
 	ifFalse: 
 	[
 		Smalltalk arguments do: 
@@ -229,16 +279,16 @@ Smalltalk arguments size = 0
 						stdout << charInAscii << nl << string << nl.
 						encodingTable at: charInAscii put: string.	
 					] prefix: ''.
-					"reopen input file and write out encoded version of each byte"
-					inFile reset.
-					newBitInputFile := BitStream new: inFile.
-					[newBitInputFile atEnd] whileFalse: [
-						|asciiChar|
-						asciiChar := inFile next asInteger.
-						encodingString := encodingTable at: asciiChar.
-						newBitInputFile write: encodingString.
-					].
+					"create new filestream"
+					outFile := FileStream open: 'temp'.
+					asciiByteSequences := OutBits new: outFile.
+					"post order traversal of huffmanTree"
+					huffmanTree postorder: asciiByteSequences.
+					"end of tree"
+					asciiByteSequences writeBit: 1.
+
 					inFile close.
+					outFile close.
 				]
 				on: SystemExceptions.FileError do: 
 				[
