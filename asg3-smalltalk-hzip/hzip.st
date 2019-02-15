@@ -118,14 +118,12 @@ Object subclass: Leaf
 	postorder: bitsout 
 	[
 		"write the 0 and then the byte"
-		|ascii|
 		bitsout writeBit: 0.
-		ascii := char asciiValue.
 		8 to: 1 by: -1 do: 
 		[
 			:index |
 			|curr|
-			curr := ascii bitAt: index.
+			curr := char asciiValue bitAt: index.
 			bitsout writeBit: curr.
 		].
 	]
@@ -199,6 +197,7 @@ Object subclass: BitStream
 
 Object subclass: OutBits [
    |bitIndex currentByte myStream|
+	nl := Character nl.
    OutBits class >> new [
       self shouldNotImplement.
    ]
@@ -230,7 +229,7 @@ Object subclass: OutBits [
 ]
 
 Smalltalk arguments size = 0
-	ifTrue: [stdout << 'unimpl' << nl]
+	ifTrue: [stdout << 'invalid number of arguments' << nl]
 	ifFalse: 
 	[
 		Smalltalk arguments do: 
@@ -240,7 +239,8 @@ Smalltalk arguments size = 0
 					|inFile|
 					inFile := FileStream open: filename mode: FileStream read.
 					"create freqtable, based off charfreq.st"
-					freqtable := ZeroArray new: 256.
+					freqtable := ZeroArray new: 257.
+					freqtable at: 256 put: 1.
                 			[inFile atEnd not] whileTrue: 
 					[
 						|ordChar|
@@ -254,11 +254,12 @@ Smalltalk arguments size = 0
 						:key :value |
 						(value notNil and: [value > 0]) ifTrue: 
 						[
+							freqtable at: key put: value.
 							node := Leaf new: key asCharacter count: value.
 							priority add: node.
 						]
 					].
-					"loop to remove two smasllest elements from queue and create new tree"
+					"loop to remove two smallest elements from queue and create new tree"
 					[priority size > 1] whileTrue:
 					[
 						|treeNode1 treeNode2 treeNode3 treeNode1Char frequency|
@@ -269,26 +270,54 @@ Smalltalk arguments size = 0
 						treeNode3 := Tree new: treeNode1Char count: frequency left: treeNode1 right: treeNode2.
 						priority add: treeNode3.
 					].
-					"construct encoding string for each nonzero character and put in encoding table based off tree.st"
+					"construct encoding string for each nonzero character"
 					huffmanTree := priority first.
-					encodingTable := ZeroArray new: 256.
+					encodingTable := ZeroArray new: 257.
 					huffmanTree inorder: 
 					[
 						:char :string |
 						charInAscii := char asInteger.
-						stdout << charInAscii << nl << string << nl.
-						encodingTable at: charInAscii put: string.	
+						encodingTable at: charInAscii put: string.
 					] prefix: ''.
-					"create new filestream"
+					"print out encoding table"
+					encodingTable keysAndValuesDo:
+					[
+						:key :value |
+						(value notNil and: [value > 0]) ifTrue:
+						[
+							getFreq := freqtable at: key.
+							"if new line"
+							key = 10 ifTrue: [stdout << ' x0A' << ' ' << getFreq << ' ' << value << nl.]
+								"else"
+								 ifFalse: 
+								[
+									"if EOF"
+									key = 256 ifTrue: 
+									[
+										stdout << ' EOF ' << getFreq << ' ' << value << nl. 
+									]
+									"else print out encoding Table"
+									ifFalse: [stdout << ' ' << key asCharacter << ' ' << getFreq << ' ' << value << nl.].
+								].
+						]
+					].
 					outFile := FileStream open: 'temp'.
-					asciiByteSequences := OutBits new: outFile.
+					outBytes := OutBits new: outFile.
 					"post order traversal of huffmanTree"
-					huffmanTree postorder: asciiByteSequences.
+					huffmanTree postorder: outBytes.
 					"end of tree"
-					asciiByteSequences writeBit: 1.
-
+					outBytes writeBit: 1.
+					inFile reset.
+					[inFile atEnd not] whileTrue:
+					[
+						|ordChar| 
+						ordChar := inFile next asInteger.
+						encodingString := encodingTable at: ordChar.
+						stdout << ' ' << encodingString << nl.
+					].
+					stdout << ' EOF ' << nl.
+					outBytes flushByte.
 					inFile close.
-					outFile close.
 				]
 				on: SystemExceptions.FileError do: 
 				[
