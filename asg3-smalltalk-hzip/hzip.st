@@ -2,19 +2,6 @@
 
 nl := Character nl.
 
-Character extend 
-[
-   isPrint 
-   [
-      ^ (Character space <= self) & (self <= $~)
-   ]
-   visible 
-   [
-      self isPrint ifTrue: [^ '$', self asString]
-                   ifFalse: [^ self asInteger printStringRadix: 8]
-   ]
-]
-
 Object subclass: ZeroArray 
 [
 	|theArray|
@@ -115,6 +102,7 @@ Object subclass: Leaf
    [
       visitor value: char value: string.
    ]
+	"post order traversal"
 	postorder: bitsout 
 	[
 		"write the 0 and then the byte"
@@ -126,6 +114,7 @@ Object subclass: Leaf
 			curr := char asciiValue bitAt: index.
 			bitsout writeBit: curr.
 		].
+		char asciiValue = 256 ifTrue: [bitsout writeBit: 1.].
 	]
 ]
 
@@ -197,7 +186,6 @@ Object subclass: BitStream
 
 Object subclass: OutBits [
    |bitIndex currentByte myStream|
-	nl := Character nl.
    OutBits class >> new [
       self shouldNotImplement.
    ]
@@ -307,17 +295,26 @@ Smalltalk arguments size = 0
 					huffmanTree postorder: outBytes.
 					"end of tree"
 					outBytes writeBit: 1.
+					"reopen input file and write out encoded version of each byte"
 					inFile reset.
 					[inFile atEnd not] whileTrue:
 					[
 						|ordChar| 
 						ordChar := inFile next asInteger.
 						encodingString := encodingTable at: ordChar.
-						stdout << ' ' << encodingString << nl.
+						encodingString do: [:currbit |
+							currbit asString = '0'
+							ifTrue: [outBytes writeBit: 0]
+							ifFalse: [outBytes writeBit: 1].
+						].
 					].
-					stdout << ' EOF ' << nl.
-					outBytes flushByte.
+					"encoding string for EOF"
+					outBytes writeBit: 1.
+					outBytes writeBit: 0.
+					outBytes writeBit: 0.
 					inFile close.
+
+					stack := OrderedCollection new.
 				]
 				on: SystemExceptions.FileError do: 
 				[
