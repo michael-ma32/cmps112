@@ -2,6 +2,27 @@
 
 nl := Character nl.
 
+FileStream extend [
+   |bitIndex currentChar|
+
+   nextBit [
+      |bit|
+      bitIndex isNil ifTrue: [bitIndex := 0].
+      bitIndex = 0 ifTrue: [
+         bitIndex := 8.
+         currentChar := self next.
+      ].
+      bit := currentChar value bitAt: bitIndex.
+      bitIndex := bitIndex - 1.
+      ^ bit
+   ]
+
+   atBitEnd [
+      ^ (bitIndex isNil | (bitIndex = 0)) & self atEnd
+   ]
+
+]
+
 Object subclass: ZeroArray 
 [
 	|theArray|
@@ -62,6 +83,7 @@ Object subclass: Leaf
    |char count|
    char [ ^ char ]
    count [ ^ count ]
+   isLeaf [ ^ true ]
 
    Leaf class >> new 
    [
@@ -121,6 +143,10 @@ Object subclass: Leaf
 Leaf subclass: Tree 
 [
    |left right|
+
+   isLeaf [ ^ false ]
+   left [ ^ left ]
+   right [ ^ right ]
 
    Tree class >> new: aChar count: aCount [
       self shouldNotImplement
@@ -216,114 +242,248 @@ Object subclass: OutBits [
    ]
 ]
 
-Smalltalk arguments size = 0
-	ifTrue: [stdout << 'invalid number of arguments' << nl]
-	ifFalse: 
+((Smalltalk arguments size < 2) | (Smalltalkarguments size > 3))
+ifTrue:
+[
+	stdout << 'invalid number of arguments' << nl.
+]
+ifFalse: 
+[
+	Smalltalk arguments: '-d -c -t -u' do:
 	[
-		Smalltalk arguments do: 
+		:opt :arg |
+		(opt = $d) ifTrue:
+		[
+			stdout << '-d debug option' << nl.
+		].	
+		((opt = $t) | (opt = $c)) ifTrue:
+		[
+			filename1 := Smalltalk getArgv: 2.
+			inFile := FileStream open: filename1 mode: FileStream read.
+			"create freqtable, based off charfreq.st"
+			freqtable := ZeroArray new: 257.
+			freqtable at: 256 put: 1.
+              		[inFile atEnd not] whileTrue: 
 			[
-				:filename |
-				[	
-					|inFile|
-					inFile := FileStream open: filename mode: FileStream read.
-					"create freqtable, based off charfreq.st"
-					freqtable := ZeroArray new: 257.
-					freqtable at: 256 put: 1.
-                			[inFile atEnd not] whileTrue: 
+				|ordChar|
+				ordChar := inFile next asInteger.
+				freqtable incr: ordChar.
+			].
+			"create priority queue, based off charfreq.st and priority.st"
+			priority := SortedCollection new.
+			freqtable keysAndValuesDo: 
+			[
+				:key :value |
+				(value notNil and: [value > 0]) ifTrue: 
+				[
+					freqtable at: key put: value.
+					node := Leaf new: key asCharacter count: value.
+					priority add: node.
+				]
+			].
+			"loop to remove two smallest elements from queue and create new tree"
+			[priority size > 1] whileTrue:
+			[
+				|treeNode1 treeNode2 treeNode3 treeNode1Char frequency|
+				treeNode1 := priority removeFirst.
+				treeNode2 := priority removeFirst.
+				treeNode1Char := treeNode1 char.
+				frequency := treeNode1 count + treeNode2 count.
+				treeNode3 := Tree new: treeNode1Char count: frequency left: treeNode1 right: treeNode2.
+				priority add: treeNode3.
+			].
+			"construct encoding string for each nonzero character"
+			huffmanTree := priority first.
+			encodingTable := ZeroArray new: 257.
+			huffmanTree inorder: 
+			[
+				:char :string |
+				charInAscii := char asInteger.
+				encodingTable at: charInAscii put: string.
+			] prefix: ''.
+		].
+		(opt = $t) ifTrue:
+		[
+			"print out encoding table"
+			encodingTable keysAndValuesDo:
+			[
+				:key :value |
+				(value notNil and: [value > 0]) ifTrue:
+				[
+					getFreq := freqtable at: key.
+					"if new line"
+					key = 10 ifTrue: 
 					[
-						|ordChar|
-						ordChar := inFile next asInteger.
-						freqtable incr: ordChar.
-					].
-					"create priority queue, based off charfreq.st and priority.st"
-					priority := SortedCollection new.
-					freqtable keysAndValuesDo: 
+						stdout << ' x0A' << ' ' << getFreq << ' ' << value << nl.
+					]
+					"else"
+					ifFalse: 
 					[
-						:key :value |
-						(value notNil and: [value > 0]) ifTrue: 
+						"if EOF"
+						key = 256 ifTrue: 
 						[
-							freqtable at: key put: value.
-							node := Leaf new: key asCharacter count: value.
-							priority add: node.
+							stdout << ' EOF ' << getFreq << ' ' << value << nl. 
 						]
-					].
-					"loop to remove two smallest elements from queue and create new tree"
-					[priority size > 1] whileTrue:
-					[
-						|treeNode1 treeNode2 treeNode3 treeNode1Char frequency|
-						treeNode1 := priority removeFirst.
-						treeNode2 := priority removeFirst.
-						treeNode1Char := treeNode1 char.
-						frequency := treeNode1 count + treeNode2 count.
-						treeNode3 := Tree new: treeNode1Char count: frequency left: treeNode1 right: treeNode2.
-						priority add: treeNode3.
-					].
-					"construct encoding string for each nonzero character"
-					huffmanTree := priority first.
-					encodingTable := ZeroArray new: 257.
-					huffmanTree inorder: 
-					[
-						:char :string |
-						charInAscii := char asInteger.
-						encodingTable at: charInAscii put: string.
-					] prefix: ''.
-					"print out encoding table"
-					encodingTable keysAndValuesDo:
-					[
-						:key :value |
-						(value notNil and: [value > 0]) ifTrue:
+						"else print out encoding Table"
+						ifFalse: 
 						[
-							getFreq := freqtable at: key.
-							"if new line"
-							key = 10 ifTrue: [stdout << ' x0A' << ' ' << getFreq << ' ' << value << nl.]
-								"else"
-								 ifFalse: 
-								[
-									"if EOF"
-									key = 256 ifTrue: 
-									[
-										stdout << ' EOF ' << getFreq << ' ' << value << nl. 
-									]
-									"else print out encoding Table"
-									ifFalse: [stdout << ' ' << key asCharacter << ' ' << getFreq << ' ' << value << nl.].
-								].
-						]
-					].
-					outFile := FileStream open: 'temp'.
-					outBytes := OutBits new: outFile.
-					"post order traversal of huffmanTree"
-					huffmanTree postorder: outBytes.
-					"end of tree"
-					outBytes writeBit: 1.
-					"reopen input file and write out encoded version of each byte"
-					inFile reset.
-					[inFile atEnd not] whileTrue:
-					[
-						|ordChar| 
-						ordChar := inFile next asInteger.
-						encodingString := encodingTable at: ordChar.
-						encodingString do: [:currbit |
-							currbit asString = '0'
-							ifTrue: [outBytes writeBit: 0]
-							ifFalse: [outBytes writeBit: 1].
+							key = 32 ifTrue: 
+							[
+								stdout << ' x20' << ' ' << getFreq << ' ' << value << nl.
+							]
+							ifFalse:
+							[
+								stdout << ' ' << key asCharacter << ' ' << getFreq << ' ' << value << nl.
+							].
 						].
 					].
-					"encoding string for EOF"
-					outBytes writeBit: 1.
-					outBytes writeBit: 0.
-					outBytes writeBit: 0.
-					inFile close.
-
-					stack := OrderedCollection new.
 				]
-				on: SystemExceptions.FileError do: 
+			].
+		].
+		(opt = $c) ifTrue:
+		[
+			filename2 := Smalltalk getArgv: 3.
+			outFile := FileStream open: filename2.
+			outBytes := OutBits new: outFile.
+			"post order traversal of huffmanTree"
+			huffmanTree postorder: outBytes.
+			"end of tree"
+			outBytes writeBit: 1.
+			"reopen input file and write out encoded version of each byte"
+			inFile reset.
+			[inFile atEnd not] whileTrue:
+			[
+				|ordChar| 
+				ordChar := inFile next asInteger.
+				encodingString := encodingTable at: ordChar.
+				encodingString do: 
 				[
-					:signal |
-					|errno|
-					errno := File errno.
-					stdout flush.
-					stderr << execname << ': ' << filename << ': ' << signal messageText << nl.
-					stderr flush.
+					:currbit |
+					currbit asString = '0'
+					ifTrue: [outBytes writeBit: 0]
+					ifFalse: [outBytes writeBit: 1].
+				].
+			].
+			"encoding string for EOF"
+			outBytes writeBit: 1.
+			outBytes writeBit: 0.
+			outBytes writeBit: 0.
+			inFile close.
+		].
+		(opt = $u) ifTrue:
+		[
+			"open compressed file"
+			filename1 := Smalltalk getArgv: 2.
+			outFile := FileStream open: filename1.
+			"create stack"
+			stack := OrderedCollection new.
+			lastBit := false.
+			"recreate huffman tree, stops before reaching the encoded version of each byte"
+			[(outFile atBitEnd not) & (lastBit = false)] whileTrue:
+			[
+				bit := outFile nextBit.
+				byte := 0.
+				"if 0, read next 8 bits and reconstruct the byte"
+				bit = 0 ifTrue: 
+				[
+					8 to: 1 by: -1 do: [:index |
+						bit := outFile nextBit.
+						byte := byte bitAt: index put: bit.
+					].
+					"if value is 0, read one more bit"
+					byte = 0 ifTrue:
+					[
+						bit := outFile nextBit.
+						"if bit is 1, add 256 to byte"
+						bit = 1 ifTrue:
+						[
+							byte := byte + 256.
+						].
+					].
+					"push byte onto stack"
+					node := Leaf new: byte asCharacter count: 1.
+					stack addFirst: node.
 				]
-			]
-	]
+				"if 1, pop 1 and 0 subtrees from stack and create new tree" 
+				ifFalse: 
+				[
+					stack size = 1 ifTrue:
+					[
+						lastBit := true.
+					]
+					ifFalse:
+					[
+						node1 := stack removeFirst.
+						node0 := stack removeFirst.
+						tree := Tree new: (node1 char) count: 1 left: node0 right: node1.
+						stack addFirst: tree.
+					].
+				].
+			].
+			decodingTree := stack first.
+			root := decodingTree.
+			"eof := false."
+			"start loop from encoded version of bytes"
+			[outFile atBitEnd not] whileTrue:
+			[
+				bit := outFile nextBit.
+				bit = 0 ifTrue:
+				[
+					root isLeaf ifTrue:
+					[
+						root char asInteger = 256 ifTrue:
+						[
+							"eof := true."
+							ObjectMemory quit.
+						].
+					]
+					ifFalse:
+					[	
+						root := root left.
+						root isLeaf ifTrue:
+						[
+							root char asInteger = 256 ifTrue:
+							[
+								"eof := true."
+								ObjectMemory quit.
+							]
+							ifFalse:
+							[
+								stdout << root char.
+							].
+							root := decodingTree.
+						].
+					].
+				]
+				ifFalse: 
+				[
+					root isLeaf ifTrue:
+					[
+						root char asInteger = 256 ifTrue:
+						[
+							"eof := true."
+							ObjectMemory quit.
+						].
+					]
+					ifFalse:
+					[
+						root := root right.
+						root isLeaf ifTrue:
+						[
+							root char asInteger = 256 ifTrue:
+							[
+								"eof := true."
+								ObjectMemory quit.
+							]
+							ifFalse:
+							[
+								stdout << root char.
+							].
+							root := decodingTree.
+						].
+					].
+				].
+			].
+		].
+	].
+].
