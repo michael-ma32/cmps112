@@ -1,0 +1,22 @@
+#!/usr/bin/perl
+# from mtime.perl
+
+use strict;
+use warnings;
+
+my $options = 0;
+my ($arg0, $arg1) = @ARGV;
+if ($arg0 eq "-d") {
+	print "-d option\n";
+	$options = 1;
+} else {
+	$options = 0;
+}
+
+open (my $fh, '<:encoding(UTF-8)', $target)
+	or die "Could not open file '$target' $!";
+ 
+while (my $row = <$fh>) {
+  	chomp $row;
+  	print "$row\n";
+}
